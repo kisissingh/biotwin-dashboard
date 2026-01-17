@@ -26,7 +26,7 @@ def generate_data():
     # Generate 1 Bad Batch (Sensor Failure at 60h)
     bad_biomass = 10.0 / (1 + np.exp(-0.1 * (time_steps - 50))) + np.random.normal(0, 0.1, 100)
     bad_do = 100 - (bad_biomass * 8) + np.random.normal(0, 0.5, 100)
-    bad_do[60:] = 0 # FAILURE
+    bad_do[60:] = 120 # MASSIVE SENSOR SPIKE
     bad_batch = pd.DataFrame({'Time': time_steps, 'Biomass': bad_biomass, 'DO': bad_do})
     
     return np.vstack(good_batches), bad_batch
@@ -95,4 +95,5 @@ with col2:
     st.pyplot(fig2)
 
 # Footer
+
 st.caption("BioTwin v1.0 | Powered by Python & Scikit-Learn")
