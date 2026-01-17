@@ -48,30 +48,49 @@ X_bad_recon = pca.inverse_transform(X_bad_pca)
 recon_error = np.sum(np.square(X_bad_scaled - X_bad_recon), axis=1)
 
 # --- 3. THE "CONTROL TOWER" (Dashboard Interface) ---
-
 # 1. CALCULATE FAILURE TIME FIRST (So the Sidebar can use it)
 failure_indices = np.where(recon_error > 3.0)[0]
 first_failure_time = failure_indices[0] if len(failure_indices) > 0 else 999
+hours_saved = 100 - first_failure_time if 100 > first_failure_time else 0
 
-# 2. SIDEBAR CONTROLS (With Business Logic)
+# 2. SIDEBAR CONTROLS (Strategic Scenario Planner)
 st.sidebar.header("🕹️ Simulation Controls")
 current_time = st.sidebar.slider("Batch Time (Hours)", 0, 99, 0)
 show_golden = st.sidebar.checkbox("Show Golden Tunnel", value=True)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("💼 Business Impact Model")
-# Default values: $5k/hr cost, $2M batch value
-cost_per_hour = st.sidebar.number_input("Operational Cost ($/hr)", value=5000, step=1000)
-batch_value = st.sidebar.number_input("Est. Batch Value ($)", value=2000000, step=100000)
+st.sidebar.subheader("📈 Strategic Scenario Planner")
 
-# The "Consultant" Calculation
+# INPUTS (The Consultant's Levers)
+batch_val_millions = st.sidebar.slider("Batch Market Value ($M)", 1.0, 10.0, 2.0, step=0.5)
+annual_runs = st.sidebar.slider("Annual Batches per Reactor", 10, 50, 20)
+failure_rate = st.sidebar.slider("Est. Failure Rate (%)", 1, 20, 10)
+
+# CALCULATIONS (The "Hidden Factory" Logic)
+batch_value = batch_val_millions * 1_000_000
+batches_affected = int(annual_runs * (failure_rate / 100))
+total_hours_freed = hours_saved * batches_affected
+# Capacity Gain: How many NEW batches can we fit in the freed time?
+potential_new_batches = int(total_hours_freed / 100) 
+added_revenue = potential_new_batches * batch_value
+
+# OUTPUTS (The Business Case)
 if current_time >= first_failure_time:
-    hours_saved = 100 - first_failure_time
-    money_saved = hours_saved * cost_per_hour
+    st.sidebar.markdown("### ⚡ Immediate Impact")
+    st.sidebar.success(f"🛑 Batch Stopped at Hour {first_failure_time}")
+    st.sidebar.metric("Resources Saved (This Run)", f"${(hours_saved * 5000):,.0f}")
     
-    st.sidebar.success(f"💰 OPEX Saved: ${money_saved:,.0f}")
-    st.sidebar.markdown(f"**Efficiency Gain:** {hours_saved} Hours")
-    st.sidebar.warning(f"📉 Opportunity Cost Avoided: ${batch_value:,.0f}")
+    st.sidebar.markdown("### 🚀 Annualized Strategy")
+    st.sidebar.info(f"If deployed across {annual_runs} runs:")
+    st.sidebar.markdown(f"**⏳ Time Recaptured:** {total_hours_freed} Hours/Year")
+    st.sidebar.markdown(f"**🏭 'Hidden Factory' Capacity:** +{potential_new_batches} New Batches")
+    
+    if added_revenue > 0:
+        st.sidebar.warning(f"💰 Potential Revenue Gain: ${added_revenue/1_000_000:.1f} Million")
+    else:
+        st.sidebar.caption("Increase failure rate or batches to see revenue impact.")
+else:
+    st.sidebar.caption("Simulate a failure (Hour 60+) to see strategic analysis.")
 
 # 3. GET DATA FOR CURRENT TIME
 current_row = bad_batch.iloc[current_time]
@@ -126,6 +145,5 @@ with col2:
     st.pyplot(fig2)
 
 st.caption("BioTwin v3.0 | FDA 21 CFR Part 11 Compliant | Automated Process Control (APC)")
-# Footer
-st.caption("BioTwin v2.1 | Automated Process Control (APC) Enabled")
+
 
