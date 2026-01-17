@@ -65,8 +65,7 @@ kpi2.metric("Biomass Density", f"{current_row['Biomass']:.2f} g/L")
 kpi3.metric("Anomaly Score", f"{current_score:.2f}", delta_color="inverse")
 
 # --- SMART LOGIC: FIND FIRST FAILURE TIME ---
-# We calculate WHEN the failure actually happened
-failure_indices = np.where(recon_error > 3.0)[0] # Find all times where score > 3
+failure_indices = np.where(recon_error > 3.0)[0]
 first_failure_time = failure_indices[0] if len(failure_indices) > 0 else 999
 
 # --- MAIN INTERFACE LOGIC ---
@@ -76,44 +75,49 @@ with col1:
     st.subheader("📡 Live Sensor Data (Dissolved Oxygen)")
     fig, ax = plt.subplots(figsize=(6, 4))
     
-    # LOGIC: If current time is PAST the failure, we only show data up to the failure
-    # This simulates the machine shutting down.
-    display_limit = min(current_time, first_failure_time + 1) if current_time > first_failure_time else current_time
+    # 1. THE GHOST LINE (The Future Prediction)
+    # We plot the WHOLE batch faintly, so you can see where the spike was going.
+    ax.plot(bad_batch['Time'], bad_batch['DO'], color='red', linestyle=':', alpha=0.3, label='Predicted Trajectory')
     
-    # Plot the Gray Tunnel (The Limit)
+    # 2. THE REALITY (The Stopped Process)
+    # We only plot the solid line up to the stop point.
+    display_limit = min(current_time, first_failure_time) if current_time > first_failure_time else current_time
+    ax.plot(bad_batch['Time'][:display_limit+1], bad_batch['DO'][:display_limit+1], color='red', linewidth=2, label='Actual Process')
+    
+    # The Golden Tunnel
     if show_golden:
         ax.fill_between(bad_batch['Time'], 80, 110, color='gray', alpha=0.2, label='Golden Tunnel')
     
-    # Plot the Batch Data (Up to the "Stop" point)
-    ax.plot(bad_batch['Time'][:display_limit+1], bad_batch['DO'][:display_limit+1], color='red', label='Current Batch')
-    
-    # If we hit the failure, draw a big "X" marks the spot
+    # The "Kill" Marker
     if current_time >= first_failure_time:
-        ax.axvline(first_failure_time, color='black', linestyle='--', label='Auto-Shutoff Triggered')
+        ax.axvline(first_failure_time, color='black', linestyle='--', label='Auto-Shutoff')
         ax.scatter(bad_batch['Time'][first_failure_time], bad_batch['DO'][first_failure_time], color='black', s=100, zorder=5, marker='X')
     
-    ax.set_ylim(-10, 130)
+    ax.set_ylim(-10, 140) # Increased limit to see the spike
     ax.legend(loc='lower left')
     st.pyplot(fig)
 
 with col2:
     st.subheader("🧠 Digital Twin Diagnostics")
     
-    # Status Logic
+    # Status Logic (FIXED THE BUG HERE)
     if current_time < first_failure_time:
         st.success("✅ Process Within Control Limits")
         st.metric("System Status", "RUNNING", delta="Optimal")
     else:
         st.error(f"🚨 CRITICAL FAILURE DETECTED at Hour {first_failure_time}")
-        st.warning("⚠️ AUTOMATED ACTION: Feed Pump Stopped to prevent waste.")
-        st.metric("System Status", "TERMINATED", delta_color="inverse", value="HALTED")
+        st.warning("⚠️ AUTOMATED ACTION: Feed Pump Stopped.")
+        # Fixed line: Moved "HALTED" to the 'delta' argument
+        st.metric("System Status", "TERMINATED", delta="HALTED", delta_color="inverse")
 
-    # The Anomaly Chart
+    # The Anomaly Chart (With Ghost Line)
     fig2, ax2 = plt.subplots(figsize=(6, 3))
-    ax2.plot(bad_batch['Time'][:display_limit+1], recon_error[:display_limit+1], color='purple', label='Deviation Score')
+    # Ghost line for anomaly score
+    ax2.plot(bad_batch['Time'], recon_error, color='purple', linestyle=':', alpha=0.3)
+    # Solid line for actual score
+    ax2.plot(bad_batch['Time'][:display_limit+1], recon_error[:display_limit+1], color='purple', linewidth=2, label='Deviation Score')
     ax2.axhline(3.0, color='red', linestyle='--', label='Threshold')
     st.pyplot(fig2)
 
 # Footer
-st.caption("BioTwin v2.0 | Automated Process Control (APC) Enabled")
-
+st.caption("BioTwin v2.1 | Automated Process Control (APC) Enabled")
